@@ -1,4 +1,4 @@
-# TTS-Mood
+# STT-Mood
 
 Minimal web application that records microphone audio, transcribes speech using Google Cloud Speech-to-Text, and analyzes the mood of the transcript using a Google LLM (Gemini), then saves it on Firestore.
 
