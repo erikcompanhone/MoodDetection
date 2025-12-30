@@ -1,3 +1,16 @@
+interface Transcript {
+  uid: string;
+  text: string;
+  confidence?: number;
+}
+
+interface Mood {
+  uid: string;
+  label: string;
+  confidence: number;
+  evidence?: string;
+}
+
 export default class Recorder {
   private isRecording: boolean = false;
   private button: HTMLButtonElement;
@@ -41,13 +54,26 @@ export default class Recorder {
           }
           
           // Upload the audio
+          let transcript: Transcript = { uid: '', text: '' };
           try {
-            const transcript = await this.uploadSpeech(audioBlob);
+            transcript = await this.uploadSpeech(audioBlob);
             console.log('Transcription result:', transcript);
           } catch (err) {
             console.error('Failed to upload audio:', err);
           }
           
+          // transcript to gemini
+          let geminiResponse: Mood = { uid: '', label: '', confidence: 0 };
+          try {
+            if (!transcript || !transcript.text) {
+              throw new Error('No transcript available for Gemini upload');
+            }
+            geminiResponse = await this.uploadTranscript(transcript);
+            console.log('Gemini response:', geminiResponse);
+          } catch (err) {
+            console.error('Failed to get response from Gemini:', err);
+          }
+
           this.audioChunks = [];
         };
         
@@ -90,6 +116,26 @@ export default class Recorder {
     if (!response.ok) {
       const text = await response.text();
       throw new Error(`Transcription failed: ${text}`);
+    }
+
+    return await response.json();
+  }
+
+  private async uploadTranscript(transcript: Transcript) {
+    const response = await fetch(
+      'http://localhost:8000/v1/analyze_mood/',
+      {
+        method: 'POST',
+        body: JSON.stringify(transcript),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Mood analysis failed: ${text}`);
     }
 
     return await response.json();

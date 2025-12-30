@@ -2,6 +2,16 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from .models import Mood, Transcript, Response
 from google.cloud import speech_v1 as speech
+from google import genai
+from google.auth import default
+
+credentials, project = default()
+gemini_client = genai.Client(
+    vertexai=True,
+    project=project,
+    location="us-central1",  # or your preferred region
+    credentials=credentials
+)
 
 app = FastAPI()
 speech_client = speech.SpeechClient()
@@ -19,6 +29,7 @@ app.add_middleware(
 async def root():
     return {"message": "Hello World"}
 
+# https://www.youtube.com/watch?v=n43Td-mU7oA
 @app.post("/v1/transcribe/")
 async def transcribe(file: UploadFile = File(...)):
     # file check
@@ -59,6 +70,20 @@ async def transcribe(file: UploadFile = File(...)):
         confidence=response.results[0].alternatives[0].confidence
     )
 
+# https://www.youtube.com/watch?v=qfWpPEgea2A
+# https://ai.google.dev/gemini-api/docs/structured-output?example=recipe
 @app.post("/v1/analyze_mood/")
-async def analyze():
-    return "Hi"
+async def analyze(transcript: Transcript):
+    propmt = "Analyze the mood of the following transcript:"
+    response = gemini_client.models.generate_content(
+        model = "gemini-2.5-flash",
+        contents=[propmt, transcript.model_dump_json(indent=2)],
+        config={
+            "response_mime_type": "application/json",
+            "response_json_schema": Mood.model_json_schema(),
+        },
+    )
+
+    mood = Mood.model_validate_json(response.text)
+
+    return mood
