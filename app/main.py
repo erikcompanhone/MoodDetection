@@ -4,6 +4,7 @@ from .models import Mood, Transcript, Response
 from google.cloud import speech_v1 as speech
 from google import genai
 from google.auth import default
+from google.cloud import firestore
 
 credentials, project = default()
 gemini_client = genai.Client(
@@ -14,7 +15,10 @@ gemini_client = genai.Client(
 )
 
 app = FastAPI()
+
 speech_client = speech.SpeechClient()
+
+db = firestore.Client()
 
 # CORS fix
 app.add_middleware(
@@ -90,3 +94,21 @@ async def analyze(transcript: Transcript):
 
     mood = Mood.model_validate_json(response.text)
     return mood
+
+# upload to firestore
+@app.post("/v1/firestore_upload/")
+async def upload_to_firestore(response: Response):
+    # insert response into firestore
+    doc_ref = db.collection(u'record')
+    doc_ref.document(response.transcript.uid).set({
+        u'created_at': firestore.SERVER_TIMESTAMP,
+        u'mood': {
+            u'confidence': response.mood.confidence,
+            u'evidence': response.mood.evidence,
+            u'mood': response.mood.mood,
+        },
+        u'transcript': response.transcript.text,
+        u'transcript_confidence': response.transcript.confidence,
+        u'uid': response.transcript.uid,
+    })
+    return {"success": True, "uid": response.transcript.uid}

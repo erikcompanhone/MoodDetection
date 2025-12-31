@@ -6,9 +6,14 @@ interface Transcript {
 
 interface Mood {
   uid: string;
-  label: string;
+  mood: string;
   confidence: number;
   evidence?: string;
+}
+
+interface Response {
+  transcript: Transcript;
+  mood: Mood;
 }
 
 export default class Recorder {
@@ -63,7 +68,7 @@ export default class Recorder {
           }
           
           // transcript to gemini
-          let geminiResponse: Mood = { uid: '', label: '', confidence: 0 };
+          let geminiResponse: Mood = { uid: '', mood: '', confidence: 0 };
           try {
             if (!transcript || !transcript.text) {
               throw new Error('No transcript available for Gemini upload');
@@ -72,6 +77,18 @@ export default class Recorder {
             console.log('Gemini response:', geminiResponse);
           } catch (err) {
             console.error('Failed to get response from Gemini:', err);
+          }
+
+          // upload to firestore
+          let response: Response = { transcript, mood: geminiResponse };
+          try {
+            if (!transcript.uid || !geminiResponse.uid || !transcript.text || !geminiResponse.mood) {
+              throw new Error('Incomplete data for Firestore upload');
+            }
+            response = await this.uploadResponse(response);
+            console.log('Uploaded response to Firestore:', response);
+          } catch (err) {
+            console.error('Failed to upload response to Firestore:', err);
           }
 
           this.audioChunks = [];
@@ -98,6 +115,26 @@ export default class Recorder {
     this.isRecording = false;
     this.updateUI();
     console.log('Recording stopped');
+  }
+
+  private async uploadResponse(responseData: Response) {
+    const response = await fetch(
+      'http://localhost:8000/v1/firestore_upload/',
+      {
+        method: 'POST',
+        body: JSON.stringify(responseData),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Firestore upload failed: ${text}`);
+    }
+
+    return await response.json();
   }
 
   private async uploadSpeech(audioBlob: Blob) {

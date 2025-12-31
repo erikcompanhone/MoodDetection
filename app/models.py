@@ -26,6 +26,5 @@ class Mood(BaseModel):
         return round(v, 2)
 
 class Response(BaseModel):
-    transcript: Optional[Transcript] = Field(..., description="Transcript data")
-    mood: Optional[Mood] = Field(None, description="Mood analysis data if available")
-    
+    transcript: Transcript = Field(..., description="Transcript data")
+    mood: Mood = Field(..., description="Mood analysis data if available")

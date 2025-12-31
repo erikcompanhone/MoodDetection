@@ -4,3 +4,4 @@ pydantic
 python-multipart
 google-cloud-speech
 google-genai
+google-cloud-firestore
