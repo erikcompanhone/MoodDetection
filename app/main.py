@@ -112,3 +112,12 @@ async def upload_to_firestore(response: Response):
         u'uid': response.transcript.uid,
     })
     return {"success": True, "uid": response.transcript.uid}
+
+# get all from firestore
+@app.get("/v1/firestore_get/")
+async def get_from_firestore():
+    docs = db.collection(u'record').stream()
+    records = []
+    for doc in docs:
+        records.append(doc.to_dict())
+    return records

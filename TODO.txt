@@ -1,0 +1,9 @@
+error handling / input validation
+add more comments for clarity
+ask for review
+
+pytest
+cicd
+docker
+
+separate / cleanup code? -> Tim said not to on 1st ver

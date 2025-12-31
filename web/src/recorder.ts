@@ -1,9 +1,13 @@
+import RecordList from './recordList.ts';
+
+// input for stt for sending to gemini
 interface Transcript {
   uid: string;
   text: string;
   confidence?: number;
 }
 
+// inpiy from gemini
 interface Mood {
   uid: string;
   mood: string;
@@ -11,9 +15,23 @@ interface Mood {
   evidence?: string;
 }
 
+// combining records to send to firestore
 interface Response {
   transcript: Transcript;
   mood: Mood;
+}
+
+// firestore collection structure
+interface FirestoreRecord {
+  uid: string;
+  transcript: string;
+  transcript_confidence: number;
+  mood: {
+    mood: string;
+    confidence: number;
+    evidence?: string[] | null;
+  };
+  created_at: string;
 }
 
 export default class Recorder {
@@ -21,10 +39,11 @@ export default class Recorder {
   private button: HTMLButtonElement;
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
-  private onAudioReady?: (audioBlob: Blob) => void;
+  private recordList: RecordList;
+  public records: FirestoreRecord[] = [];
 
-  constructor(container: HTMLElement, onAudioReady?: (audioBlob: Blob) => void) {
-    this.onAudioReady = onAudioReady;
+  constructor(container: HTMLElement, recordList: RecordList) {
+    this.recordList = recordList;
     this.button = document.createElement('button');
     this.button.className = 'recorder-button';
     this.button.addEventListener('click', () => this.toggle());
@@ -54,9 +73,6 @@ export default class Recorder {
         
         this.mediaRecorder.onstop = async () => {
           const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' }); //transform blob into webm format
-          if (this.onAudioReady) {
-            this.onAudioReady(audioBlob);
-          }
           
           // Upload the audio
           let transcript: Transcript = { uid: '', text: '' };
@@ -91,6 +107,16 @@ export default class Recorder {
             console.error('Failed to upload response to Firestore:', err);
           }
 
+          // retrieve from firestore
+          this.records = [];
+          try {
+            this.records = await this.getFromFirestore();
+            console.log('Retrieved records from Firestore:', this.records);
+            this.recordList?.update(this.records);
+          } catch (err) {
+            console.error('Failed to retrieve records from Firestore:', err);
+          }
+
           this.audioChunks = [];
         };
         
@@ -115,6 +141,22 @@ export default class Recorder {
     this.isRecording = false;
     this.updateUI();
     console.log('Recording stopped');
+  }
+
+  private async getFromFirestore() {
+    const response = await fetch(
+      'http://localhost:8000/v1/firestore_get/',
+      {
+        method: 'GET',
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Firestore retrieval failed: ${text}`);
+    }
+
+    return await response.json();
   }
 
   private async uploadResponse(responseData: Response) {

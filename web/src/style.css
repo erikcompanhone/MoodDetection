@@ -43,3 +43,16 @@ h1 {
 .recorder-button.active {
   background: #ff0000;
 }
+
+.record-list {
+  max-width: 600px;
+  margin: 2rem;
+  padding: 0 1rem;
+}
+
+.record-item {
+  background: white;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  text-align: left;
+}
