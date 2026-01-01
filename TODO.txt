@@ -1,5 +1,4 @@
 error handling / input validation
-add more comments for clarity
 ask for review
 
 pytest

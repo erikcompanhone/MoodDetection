@@ -2,6 +2,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from uuid import uuid4
 
+# model for output from google stt api
 class Transcript(BaseModel):
     uid: str = Field(default_factory=lambda: str(uuid4()), description="Unique identifier for the transcript")
     text: str = Field(..., description="Transcribed text from the audio")
@@ -13,6 +14,7 @@ class Transcript(BaseModel):
         """Round floats to 2 decimal places."""
         return round(v, 2)
 
+# model for output from gemini api
 class Mood(BaseModel):
     uid: str = Field(default_factory=lambda: str(uuid4()), description="Unique identifier for the mood analysis")
     mood: str = Field(..., description="Detected mood label from the audio")
@@ -25,6 +27,7 @@ class Mood(BaseModel):
         """Round floats to 2 decimal places."""
         return round(v, 2)
 
+# model for combined outputs for firestore upload
 class Response(BaseModel):
     transcript: Transcript = Field(..., description="Transcript data")
     mood: Mood = Field(..., description="Mood analysis data if available")

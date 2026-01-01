@@ -50,6 +50,7 @@ export default class Recorder {
     container.appendChild(this.button);
   }
 
+  // Button toggle handler
   private toggle(): void {
     if (this.isRecording) {
       this.stop();
@@ -58,6 +59,7 @@ export default class Recorder {
     }
   }
 
+  // start recording
   private start(): void {
     // gets perms
     navigator.mediaDevices.getUserMedia({ audio: true, video: false })
@@ -71,6 +73,7 @@ export default class Recorder {
           }
         };
         
+        // on stop event handler
         this.mediaRecorder.onstop = async () => {
           const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' }); //transform blob into webm format
           
@@ -132,6 +135,7 @@ export default class Recorder {
       });
   }
 
+  // stop recording
   private stop(): void {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       this.mediaRecorder.stop();
@@ -143,6 +147,7 @@ export default class Recorder {
     console.log('Recording stopped');
   }
 
+  // get records from firestore
   private async getFromFirestore() {
     const response = await fetch(
       'http://localhost:8000/v1/firestore_get/',
@@ -159,6 +164,7 @@ export default class Recorder {
     return await response.json();
   }
 
+  // upload combined response to firestore
   private async uploadResponse(responseData: Response) {
     const response = await fetch(
       'http://localhost:8000/v1/firestore_upload/',
@@ -179,6 +185,7 @@ export default class Recorder {
     return await response.json();
   }
 
+  // upload audio blob to stt service
   private async uploadSpeech(audioBlob: Blob) {
     const form = new FormData();
 
@@ -200,6 +207,7 @@ export default class Recorder {
     return await response.json();
   }
 
+  // upload transcript to gemini for mood analysis
   private async uploadTranscript(transcript: Transcript) {
     const response = await fetch(
       'http://localhost:8000/v1/analyze_mood/',
@@ -220,6 +228,7 @@ export default class Recorder {
     return await response.json();
   }
 
+  // update button UI
   private updateUI(): void {
     if (this.isRecording) {
       this.button.classList.add('active');

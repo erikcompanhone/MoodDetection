@@ -6,11 +6,12 @@ from google import genai
 from google.auth import default
 from google.cloud import firestore
 
+# clients startup
 credentials, project = default()
 gemini_client = genai.Client(
-    vertexai=True,
+    vertexai=True, # vertex for ADC so there are no keys
     project=project,
-    location="us-central1",  # or your preferred region
+    location="us-central1",
     credentials=credentials
 )
 
@@ -29,10 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
+# speech to text endpoint
 # https://www.youtube.com/watch?v=n43Td-mU7oA
 @app.post("/v1/transcribe/")
 async def transcribe(file: UploadFile = File(...)):
@@ -74,6 +72,7 @@ async def transcribe(file: UploadFile = File(...)):
         confidence=response.results[0].alternatives[0].confidence
     )
 
+# gemini mood analysis endpoint
 # https://www.youtube.com/watch?v=qfWpPEgea2A
 # https://ai.google.dev/gemini-api/docs/structured-output?example=recipe
 @app.post("/v1/analyze_mood/")
@@ -95,7 +94,7 @@ async def analyze(transcript: Transcript):
     mood = Mood.model_validate_json(response.text)
     return mood
 
-# upload to firestore
+# upload to firestore endpoint
 @app.post("/v1/firestore_upload/")
 async def upload_to_firestore(response: Response):
     # insert response into firestore
@@ -113,7 +112,7 @@ async def upload_to_firestore(response: Response):
     })
     return {"success": True, "uid": response.transcript.uid}
 
-# get all from firestore
+# get all from firestore endpoint
 @app.get("/v1/firestore_get/")
 async def get_from_firestore():
     docs = db.collection(u'record').stream()

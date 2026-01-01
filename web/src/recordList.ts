@@ -32,6 +32,7 @@ export default class RecordList {
       return;
     }
 
+    // Loop through records and create elements to be displayed
     records.forEach(record => {
       const recordItem = document.createElement('div');
       recordItem.className = 'record-item';
