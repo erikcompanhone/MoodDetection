@@ -26,32 +26,6 @@ The model returns structured JSON that includes:
 
 ---
 
-## API
-
-### POST /v1/transcribe
-
-Accepts a microphone audio upload and runs the full pipeline.
-
-Returns:
-- the transcript text
-- the mood analysis result
-- a record identifier
-
-Example response:
-
-```json
-{
-  "record_id": "abc123",
-  "transcript": "I had a really good day and feel relieved.",
-  "mood": {
-    "label": "happy",
-    "confidence": 0.86,
-    "evidence": ["really good day", "feel relieved"]
-  }
-}
-```
----
-
 ## Technology overview
 Backend:
 
