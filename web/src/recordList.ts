@@ -1,16 +1,13 @@
 // from firestore
-interface Mood {
-  mood: string;
-  confidence: number;
-  evidence?: string[] | null;
-}
-
-// from firestore
 interface Response {
   uid: string;
   transcript: string;
   transcript_confidence: number;
-  mood: Mood;
+  mood: {
+    mood: string;
+    confidence: number;
+    evidence?: string[] | null;
+  };
   created_at: string;
 }
 
@@ -31,6 +28,8 @@ export default class RecordList {
     if (records.length === 0) {
       return;
     }
+
+    records.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     // Loop through records and create elements to be displayed
     records.forEach(record => {

@@ -26,8 +26,3 @@ class Mood(BaseModel):
     def round_float(cls, v: float) -> float:
         """Round floats to 2 decimal places."""
         return round(v, 2)
-
-# model for combined outputs for firestore upload
-class Response(BaseModel):
-    transcript: Transcript = Field(..., description="Transcript data")
-    mood: Mood = Field(..., description="Mood analysis data if available")

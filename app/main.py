@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .models import Mood, Transcript, Response
+from .models import Mood, Transcript
 from google.cloud import speech_v1 as speech
 from google import genai
 from google.auth import default
@@ -99,28 +99,28 @@ async def analyze(transcript: Transcript):
 
 # upload to firestore endpoint
 @app.post("/v1/firestore_upload/")
-async def upload_to_firestore(response: Response):
-    if not response:
+async def upload_to_firestore(transcript: Transcript, mood: Mood):
+    if not transcript or not mood:
         raise HTTPException(status_code=400, detail="No response data provided.")
 
     # insert response into firestore
     doc_ref = db.collection(u'record')
-    write_res = doc_ref.document(response.transcript.uid).set({
+    write_res = doc_ref.document(transcript.uid).set({
         u'created_at': firestore.SERVER_TIMESTAMP,
         u'mood': {
-            u'confidence': response.mood.confidence,
-            u'evidence': response.mood.evidence,
-            u'mood': response.mood.mood,
+            u'confidence': mood.confidence,
+            u'evidence': mood.evidence,
+            u'mood': mood.mood,
         },
-        u'transcript': response.transcript.text,
-        u'transcript_confidence': response.transcript.confidence,
-        u'uid': response.transcript.uid,
+        u'transcript': transcript.text,
+        u'transcript_confidence': transcript.confidence,
+        u'uid': transcript.uid,
     })
 
     if not write_res.update_time:
         raise HTTPException(status_code=400, detail="Failed to upload to Firestore.")
 
-    return {"success": True, "uid": response.transcript.uid}
+    return {"success": True, "uid": transcript.uid}
 
 # get all from firestore endpoint
 @app.get("/v1/firestore_get/")

@@ -15,12 +15,6 @@ interface Mood {
   evidence?: string;
 }
 
-// combining records to send to firestore
-interface Response {
-  transcript: Transcript;
-  mood: Mood;
-}
-
 // firestore collection structure
 interface FirestoreRecord {
   uid: string;
@@ -99,13 +93,13 @@ export default class Recorder {
           }
 
           // upload to firestore
-          let response: Response = { transcript, mood: geminiResponse };
+          let data: { transcript: Transcript; mood: Mood } = { transcript, mood: geminiResponse };
           try {
             if (!transcript.uid || !geminiResponse.uid || !transcript.text || !geminiResponse.mood) {
               throw new Error('Incomplete data for Firestore upload');
             }
-            response = await this.uploadResponse(response);
-            console.log('Uploaded response to Firestore:', response);
+            data = await this.uploadResponse(data);
+            console.log('Uploaded response to Firestore:', data);
           } catch (err) {
             console.error('Failed to upload response to Firestore:', err);
           }
@@ -165,12 +159,12 @@ export default class Recorder {
   }
 
   // upload combined response to firestore
-  private async uploadResponse(responseData: Response) {
+  private async uploadResponse(data: { transcript: Transcript; mood: Mood }) {
     const response = await fetch(
       'http://localhost:8000/v1/firestore_upload/',
       {
         method: 'POST',
-        body: JSON.stringify(responseData),
+        body: JSON.stringify(data),
         headers: {
           'Content-Type': 'application/json'
         }
