@@ -69,62 +69,7 @@ export default class Recorder {
         
         // on stop event handler
         this.mediaRecorder.onstop = async () => {
-          const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' }); //transform blob into webm format
-          
-          // Upload the audio
-          let transcript: Transcript = { uid: '', text: '' };
-          try {
-            transcript = await this.uploadSpeech(audioBlob);
-
-            if (!transcript.text || transcript.text === "") {
-              throw new Error('Incomplete transcript data received from STT service');
-            }
-          
-            console.log('Transcription result:', transcript);
-          } catch (err) {
-            console.error('Failed to upload audio:', err);
-          }
-          
-          // transcript to gemini
-          let geminiResponse: Mood = { uid: '', mood: '', confidence: 0 };
-          try {
-            geminiResponse = await this.uploadTranscript(transcript);
-            
-            if (!geminiResponse.mood || geminiResponse.mood === "") {
-              throw new Error('Incomplete mood data received from Gemini service');
-            }
-            
-            console.log('Gemini response:', geminiResponse);
-          } catch (err) {
-            console.error('Failed to get response from Gemini:', err);
-          }
-
-          // upload to firestore
-          try {
-            if (!transcript.uid || !geminiResponse.uid || !transcript.text || !geminiResponse.mood) {
-              throw new Error('Incomplete data for Firestore upload');
-            }
-            let response = await this.uploadToFirestore(transcript, geminiResponse);
-
-            if (response.success !== true || !response.uid) {
-              throw new Error('Invalid data received from Firestore upload');
-            }
-
-            console.log('Uploaded response to Firestore:', response);
-          } catch (err) {
-            console.error('Failed to upload response to Firestore:', err);
-          }
-
-          // retrieve from firestore
-          this.records = [];
-          try {
-            this.records = await this.getFromFirestore();
-            console.log('Retrieved records from Firestore:', this.records);
-            this.recordList?.update(this.records);
-          } catch (err) {
-            console.error('Failed to retrieve records from Firestore:', err);
-          }
-
+          await this.processAudio();
           this.audioChunks = [];
         };
         
@@ -138,6 +83,65 @@ export default class Recorder {
         this.isRecording = false;
         this.updateUI();
       });
+  }
+
+  private async processAudio() {
+    const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' }); //transform blob into webm format
+
+
+    // Upload the audio
+    let transcript: Transcript = { uid: '', text: '' };
+    try {
+      transcript = await this.uploadSpeech(audioBlob);
+
+      if (!transcript.text || transcript.text === "") {
+        throw new Error('Incomplete transcript data received from STT service');
+      }
+
+      console.log('Transcription result:', transcript);
+    } catch (err) {
+      console.error('Failed to upload audio:', err);
+    }
+
+    // transcript to gemini
+    let geminiResponse: Mood = { uid: '', mood: '', confidence: 0 };
+    try {
+      geminiResponse = await this.uploadTranscript(transcript);
+
+      if (!geminiResponse.mood || geminiResponse.mood === "") {
+        throw new Error('Incomplete mood data received from Gemini service');
+      }
+
+      console.log('Gemini response:', geminiResponse);
+    } catch (err) {
+      console.error('Failed to get response from Gemini:', err);
+    }
+
+    // upload to firestore
+    try {
+      if (!transcript.uid || !geminiResponse.uid || !transcript.text || !geminiResponse.mood) {
+        throw new Error('Incomplete data for Firestore upload');
+      }
+      let response = await this.uploadToFirestore(transcript, geminiResponse);
+
+      if (response.success !== true || !response.uid) {
+        throw new Error('Invalid data received from Firestore upload');
+      }
+
+      console.log('Uploaded response to Firestore:', response);
+    } catch (err) {
+      console.error('Failed to upload response to Firestore:', err);
+    }
+
+    // retrieve from firestore
+    this.records = [];
+    try {
+      this.records = await this.getFromFirestore();
+      console.log('Retrieved records from Firestore:', this.records);
+      this.recordList?.update(this.records);
+    } catch (err) {
+      console.error('Failed to retrieve records from Firestore:', err);
+    }
   }
 
   // stop recording
