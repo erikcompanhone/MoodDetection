@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
     # test Job
     test:
@@ -26,7 +30,8 @@ jobs:
         - name: run tests
           run: |
             pytest
-        
+    
+    # build frontend job
     front:
         runs-on: ubuntu-latest
 
@@ -38,12 +43,28 @@ jobs:
             npm ci
             npm run build
 
-    # build docker img job -> should this be a docker file?
-    
+    # build and push docker image to Google Artifact Registry
+    google-artifact-registry:
+        needs: [ test, front ]
 
-    # push/deploy docker repo job? -> should this be a docker file?
+        runs-on: ubuntu-latest
 
+        steps:
+        - uses: actions/checkout@v2
+        - name: authenticate to gcloud
+          uses: google-github-actions/auth@v2
+          with:
+            workload_identity_provider: projects/596334589140/locations/global/workloadIdentityPools/githubactions/providers/github
+            service_account: githubactions@learningprojectproposal.iam.gserviceaccount.com
 
+        - name: configure docker for artifact registry
+          run: |
+            gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
+        - name: build docker image
+          run: |
+            docker build -t us-central1-docker.pkg.dev/learningprojectproposal/githubactionsrepo/mood-detection:${{ github.sha }} .
 
-    # where do i setup ADC?
+        - name: push docker image
+          run: |
+            docker push us-central1-docker.pkg.dev/learningprojectproposal/githubactionsrepo/mood-detection:${{ github.sha }}
