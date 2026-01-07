@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from .models import Mood, Transcript
 from google.cloud import speech_v1 as speech
 from google import genai
@@ -130,3 +131,7 @@ async def get_from_firestore():
     for row in rows:
         records.append(row.to_dict())
     return records
+
+# Mount static files
+# https://fastapi.tiangolo.com/tutorial/static-files/
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
