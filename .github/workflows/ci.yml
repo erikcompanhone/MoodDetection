@@ -50,15 +50,16 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-        - name: Set up Cloud SDK
-          uses: google-github-actions/setup-gcloud@v2
-
         - uses: actions/checkout@v2
+        
         - name: authenticate to gcloud
           uses: google-github-actions/auth@v2
           with:
             workload_identity_provider: projects/596334589140/locations/global/workloadIdentityPools/githubactions/providers/github
             service_account: githubactions@learningprojectproposal.iam.gserviceaccount.com
+
+        - name: Set up SDK
+          uses: google-github-actions/setup-gcloud@v2
 
         - name: configure docker for artifact registry
           run: |
