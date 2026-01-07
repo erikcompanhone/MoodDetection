@@ -27,6 +27,22 @@ jobs:
           run: |
             pytest
         
-    # build job
+    front:
+        runs-on: ubuntu-latest
 
-    # deploy job
+        steps:
+        - uses: actions/checkout@v2
+        - name: build frontend
+          run: |
+            npm ci
+            npm run build
+
+    # build docker img job -> should this be a docker file?
+    
+
+    # push/deploy docker repo job? -> should this be a docker file?
+
+
+
+
+    # where do i setup ADC?
