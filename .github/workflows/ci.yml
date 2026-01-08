@@ -2,7 +2,7 @@ name: CI pipeline with tests and docker
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, merge_endpoints ]
   pull_request:
     branches: [ main ]
 
