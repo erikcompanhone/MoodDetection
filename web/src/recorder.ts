@@ -106,19 +106,18 @@ export default class Recorder {
 
   // stop recording
   private stream_stop(): void {
-    if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
-      this.mediaRecorder.stop();
-      this.mediaRecorder.stream.getTracks().forEach((track) => track.stop());
-      this.mediaRecorder = null;
-    }
-
-    // stop websocket after 1 second to allow final messages
+    // stop after 5 seconds to allow final messages to be processed
     setTimeout(() => {
+      if (this.mediaRecorder && this.mediaRecorder.state !== "inactive") {
+        this.mediaRecorder.stop();
+        this.mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+        this.mediaRecorder = null;
+      }
       if (this.websocket) {
         this.websocket.close();
         this.websocket = null;
       }
-    }, 1000);
+    }, 5000);
 
     this.isRecording = false;
     this.updateUI();

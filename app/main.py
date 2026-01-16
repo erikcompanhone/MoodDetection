@@ -70,6 +70,7 @@ async def websocket_stream_process_audio(websocket: WebSocket):
     # queues for audio and results
     audio_queue = queue.Queue()
     res_queue = queue.Queue()
+    final_results_queue = queue.Queue()
     stop = threading.Event()
 
     # open connection
@@ -91,15 +92,15 @@ async def websocket_stream_process_audio(websocket: WebSocket):
             return
 
         # call google stt
-        responses = (
-            speech_client.streaming_recognize(  # call blocks websocket if not in thread
+        responses: speech.StreamingRecognizeResponse = (
+            speech_client.streaming_recognize(  # returns iterator
                 config=streaming_config, requests=generator()
             )
         )
 
         # process responses
         try:
-            for response in responses:
+            for response in responses:  # iterator blocks thread if no response
                 for result in response.results:
                     transcript_text = result.alternatives[0].transcript
                     confidence = result.alternatives[0].confidence
@@ -127,6 +128,8 @@ async def websocket_stream_process_audio(websocket: WebSocket):
             # read from results q
             while not res_queue.empty():
                 res = res_queue.get()
+                if res["is_final"]:
+                    final_results_queue.put(res)
                 await websocket.send_json(res)
     except WebSocketDisconnect as e:
         print("websocket disconnected:", e)
@@ -135,6 +138,25 @@ async def websocket_stream_process_audio(websocket: WebSocket):
     finally:
         stop.set()
         audio_queue.put(None)
+        # get full transcript from results q
+        entries = final_results_queue.qsize()
+        full_transcript = ""
+        final_confidence = 0.0
+        while not final_results_queue.empty():
+            res = final_results_queue.get()
+            full_transcript += res["transcript"] + ". "
+            final_confidence += res["confidence"]
+        if entries > 0:
+            final_confidence /= entries
+        else:
+            final_confidence = 0.0
+        transcript = Transcript(
+            text=full_transcript,
+            confidence=final_confidence,
+        )
+        mood = await moodAnalysisStep(transcript)
+        uploadResult = await uploadToFirestoreStep(transcript, mood)
+    return uploadResult
 
 
 # single endpoint to batch transcribe, analyze mood, and upload to firestore
