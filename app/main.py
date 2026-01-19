@@ -1,5 +1,6 @@
 import queue
 import threading
+from http import client
 from pathlib import Path
 from typing import Annotated
 
@@ -16,7 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from google import genai
 from google.auth import default
 from google.cloud import firestore
-from google.cloud import speech_v1 as speech
+from google.cloud.speech_v2 import SpeechClient
+from google.cloud.speech_v2.types import cloud_speech
 
 from .models import Mood, Transcript
 
@@ -31,7 +33,9 @@ gemini_client = genai.Client(
 
 app = FastAPI()
 
-speech_client = speech.SpeechClient()
+speech_client = SpeechClient(
+    client_options={"api_endpoint": "us-speech.googleapis.com"}
+)
 
 db = firestore.Client()
 
@@ -57,14 +61,18 @@ app.add_middleware(
 @app.websocket("/v1/ws/stream_process_audio/")
 async def websocket_stream_process_audio(websocket: WebSocket):
     # configure google stt streaming
-    config = speech.RecognitionConfig(
-        encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
-        sample_rate_hertz=48000,
-        language_code="en-US",
-        enable_word_time_offsets=True,
+    config = cloud_speech.RecognitionConfig(
+        auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
+        language_codes=["en-US"],
+        model="chirp_3",
     )
-    streaming_config = speech.StreamingRecognitionConfig(
-        config=config, interim_results=True
+    streaming_config = cloud_speech.StreamingRecognitionConfig(
+        config=config,
+    )
+
+    config_request = cloud_speech.StreamingRecognizeRequest(
+        recognizer=f"projects/{project}/locations/us/recognizers/mood",
+        streaming_config=streaming_config,
     )
 
     # queues for audio and results
@@ -77,24 +85,24 @@ async def websocket_stream_process_audio(websocket: WebSocket):
     await websocket.accept()
     print("WebSocket connection accepted")
 
-    # generator to yield audio chunks mimicking googles example
-    def generator():
-        while True:
-            chunk = audio_queue.get()
-            if chunk is None:
-                break
-            yield speech.StreamingRecognizeRequest(
-                audio_content=chunk
-            )  # yield audio chunks to google stt
-
     def stt_thread():
         if stop.is_set():
             return
 
+        def requests():
+            yield config_request
+            while True:
+                chunk = audio_queue.get()
+                if chunk is None:
+                    break
+                yield cloud_speech.StreamingRecognizeRequest(
+                    audio=chunk
+                )  # yield audio chunks to google stt
+
         # call google stt
-        responses: speech.StreamingRecognizeResponse = (
+        responses: cloud_speech.StreamingRecognizeResponse = (
             speech_client.streaming_recognize(  # returns iterator
-                config=streaming_config, requests=generator()
+                requests=requests()
             )
         )
 
@@ -123,7 +131,10 @@ async def websocket_stream_process_audio(websocket: WebSocket):
             data = await websocket.receive_bytes()
 
             # put audio into q
-            audio_queue.put(data)
+            MAX_CHUNK_SIZE = 25600
+            for i in range(0, len(data), MAX_CHUNK_SIZE):
+                chunk = data[i : i + MAX_CHUNK_SIZE]
+                audio_queue.put(chunk)
 
             # read from results q
             while not res_queue.empty():
@@ -144,12 +155,13 @@ async def websocket_stream_process_audio(websocket: WebSocket):
         final_confidence = 0.0
         while not final_results_queue.empty():
             res = final_results_queue.get()
-            full_transcript += res["transcript"] + ". "
+            full_transcript += res["transcript"]
             final_confidence += res["confidence"]
         if entries > 0:
             final_confidence /= entries
         else:
             final_confidence = 0.0
+
         transcript = Transcript(
             text=full_transcript,
             confidence=final_confidence,
@@ -199,24 +211,22 @@ async def batchTranscriptionStep(file: UploadFile) -> Transcript:
     if file.size is None or file.size == 0:
         raise HTTPException(status_code=400, detail="Empty file uploaded.")
 
-    # read file bytes
     data = await file.read()
-    sample_rate = 48000
 
-    if not data:
-        raise HTTPException(status_code=400, detail="Failed to read file.")
-
-    # send bytes to google stt
-    audio = speech.RecognitionAudio(content=data)
-    config = speech.RecognitionConfig(
-        encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
-        sample_rate_hertz=sample_rate,
-        language_code="en-US",
+    config = cloud_speech.RecognitionConfig(
+        auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
+        language_codes=["en-US"],
+        model="chirp_3",
     )
-    response = speech_client.recognize(config=config, audio=audio)
 
-    if not response.results:
-        raise HTTPException(status_code=400, detail="Transcription failed.")
+    request = cloud_speech.RecognizeRequest(
+        recognizer=f"projects/{project}/locations/us/recognizers/mood",
+        config=config,
+        content=data,
+    )
+
+    # Transcribes the audio into text
+    response = speech_client.recognize(request=request)
 
     # transcript in pydantic model
     transcript = Transcript(
