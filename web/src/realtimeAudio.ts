@@ -19,7 +19,7 @@ export default class RealtimeAudio {
     this.realtimeAudioElement.innerHTML = "";
 
     if (isFinal) {
-      this.final += newTranscript + " ";
+      this.final += newTranscript + ". ";
       this.incoming = "";
     } else {
       this.incoming = this.merge(this.incoming, newTranscript, stability);
@@ -42,8 +42,8 @@ export default class RealtimeAudio {
     oldText = oldText.trim();
     newText = newText.trim();
 
+    // subject to change in next message, might be wrong word
     if (stability < 0.3) {
-      // subject to change in next message, might be wrong word
       return oldText;
     }
 

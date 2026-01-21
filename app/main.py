@@ -64,11 +64,14 @@ async def websocket_stream_process_audio(websocket: WebSocket):
         auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
         language_codes=["en-US"],
         model="long",  # chirp3 doesnt support interim results
+        features=cloud_speech.RecognitionFeatures(
+            enable_automatic_punctuation=False,
+        ),
     )
     streaming_config = cloud_speech.StreamingRecognitionConfig(
         config=config,
         streaming_features=cloud_speech.StreamingRecognitionFeatures(
-            interim_results=True
+            interim_results=True,
         ),
     )
 
@@ -155,7 +158,7 @@ async def websocket_stream_process_audio(websocket: WebSocket):
         full_transcript = ""
         while not final_results_queue.empty():
             res = final_results_queue.get()
-            full_transcript += res["transcript"]
+            full_transcript += res["transcript"] + ". "
 
         transcript = Transcript(
             text=full_transcript,
